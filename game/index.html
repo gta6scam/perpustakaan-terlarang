@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perpustakaan Terlarang — Curi 3 Manuskrip di Tengah Malam</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0714;
+    font-family: Georgia, 'Times New Roman', serif; color: #f5e6c8; }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .panel { position: fixed; z-index: 5; background: rgba(10, 8, 20, 0.82);
+    border: 1px solid #b45309; border-radius: 10px; padding: 10px 14px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.6); }
+  #hud-top { top: 12px; left: 12px; width: 232px; }
+  #hud-top .row { font-size: 17px; line-height: 1.5; white-space: nowrap; }
+  #hud-top .gold { color: #fbbf24; font-weight: bold; }
+  #hud-detect { top: 12px; left: 258px; width: 190px; }
+  #hud-detect .label { font-size: 15px; letter-spacing: 1px; color: #fbbf24; }
+  .bar { height: 10px; background: #2a2438; border-radius: 5px; overflow: hidden; margin-top: 4px; }
+  .bar > div { height: 100%; width: 0%; background: #34d399; transition: width 0.1s linear; }
+  #hud-guards { top: 150px; left: 12px; max-width: 760px; font-size: 14px; padding: 7px 12px; white-space: nowrap; }
+  #hud-guards span { margin-right: 6px; }
+  #hud-guards .sus { color: #fb923c; font-weight: bold; }
+  #hud-guards .alert { color: #ef4444; font-weight: bold; }
+  #hud-banner { position: fixed; top: 196px; left: 50%; transform: translateX(-50%); background: rgba(10,8,20,0.85);
+    color: #fde68a; font-size: 18px; font-weight: bold; padding: 8px 18px; border-radius: 8px;
+    border: 1px solid #b45309; opacity: 0; transition: opacity 0.2s; white-space: nowrap; }
+  #hud-hint { bottom: 12px; left: 12px; font-size: 15px; color: #d6c9a8; padding: 8px 14px; }
+  #hud-hint b { color: #fbbf24; }
+  #minimap-wrap { position: fixed; right: 12px; bottom: 12px; z-index: 5;
+    border: 1px solid #b45309; border-radius: 10px; overflow: hidden;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.6); background: rgba(8,10,24,0.92); }
+  #minimap-wrap .cap { font-size: 12px; color: #d6c9a8; text-align: center; padding: 3px 0;
+    letter-spacing: 2px; }
+  .overlay { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center;
+    justify-content: center; background: rgba(5, 3, 12, 0.72); }
+  .overlay.hidden { display: none; }
+  .card { max-width: 640px; width: 90%; text-align: center; padding: 34px 40px;
+    background: rgba(16, 10, 28, 0.94); border: 2px solid #b45309; border-radius: 16px;
+    box-shadow: 0 0 60px rgba(251, 191, 36, 0.15); }
+  .card h1 { margin: 0 0 4px; font-size: 42px; color: #fbbf24; letter-spacing: 3px; }
+  .card h2 { margin: 0 0 14px; font-size: 19px; color: #34d399; font-weight: normal; letter-spacing: 1px; }
+  .card p { font-size: 16px; line-height: 1.55; color: #e7dcc0; margin: 8px 0; }
+  .card .keys { font-size: 15px; color: #d6c9a8; line-height: 1.8; }
+  .card .keys b { color: #fbbf24; }
+  .grade { font-size: 84px; line-height: 1; color: #fbbf24; margin: 10px 0 4px;
+    text-shadow: 0 0 30px rgba(251,191,36,0.5); }
+  .bigbtn { margin-top: 18px; display: inline-block; font-size: 20px; font-weight: bold;
+    color: #1a1208; background: #fbbf24; border: none; border-radius: 999px;
+    padding: 13px 34px; cursor: pointer; font-family: Georgia, serif; }
+  .bigbtn:hover { background: #fcd34d; }
+  .stats { font-size: 17px; color: #e7dcc0; line-height: 1.6; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="scene" aria-label="Perpustakaan Terlarang: curi 3 manuskrip tanpa terlihat penjaga"></canvas>
+
+<div id="hud-top" class="panel">
+  <div class="row gold" id="hud-items">◆ 0/3 Manuskrip</div>
+  <div class="row" id="hud-time">00:00</div>
+  <div class="row" id="hud-books">▣ Buku pengalih: 3</div>
+  <div class="row" id="hud-candles">🕯 Lilin ditiup: 0/6</div>
+</div>
+
+<div id="hud-detect" class="panel">
+  <div class="label" id="hud-detection">TERSEMBUNYI</div>
+  <div class="bar"><div id="hud-detection-bar"></div></div>
+  <div class="label" id="hud-noise" style="margin-top:8px">Kebisingan</div>
+  <div class="bar"><div id="hud-noise-bar"></div></div>
+</div>
+
+<div id="hud-guards" class="panel"></div>
+<div id="hud-banner"></div>
+<div id="hud-hint" class="panel"></div>
+
+<div id="minimap-wrap">
+  <canvas id="minimap" width="230" height="150"></canvas>
+  <div class="cap">DENAH PERPUSTAKAAN</div>
+</div>
+
+<div id="overlay-title" class="overlay">
+  <div class="card">
+    <h1>PERPUSTAKAAN TERLARANG</h1>
+    <h2>Manuskrip Tengah Malam</h2>
+    <p>Tengah malam di perpustakaan tua. Tiga manuskrip terlarang — <b>Naskah Alkemis</b>,
+      <b>Peta Bintang</b>, dan <b>Surat Raja</b> — menunggu di rak-rak gelap.
+      Curi ketiganya, lalu kabur lewat pintu <b>EXIT</b> di timur… tanpa terlihat.</p>
+    <p><b>MENANG:</b> 3 manuskrip + sampai EXIT. &nbsp; <b>KALAH:</b> ketahuan 3 kali.</p>
+    <p class="keys"><b>WASD / Panah</b> gerak &nbsp;·&nbsp; <b>Shift</b> menyelinap (sunyi)<br>
+      <b>E</b> ambil manuskrip / tiup lilin (zona gelap) &nbsp;·&nbsp; <b>Q</b> lempar buku pengalih<br>
+      Gerak terus-menerus = <b>berlari</b>: rak berderit, penjaga datang! &nbsp;·&nbsp; <b>M</b> suara</p>
+    <p>Empat pustakawan berpatroli dengan kerucut visi — kuning waspada, oranye curiga,
+      merah mengejar. Kucing hitam Mochi lebih cepat dengan cone pendek. Bersembunyilah
+      di balik rak dan meja, atau di zona gelap lilin yang kau tiup.</p>
+    <button class="bigbtn" data-start>▶ &nbsp;MULAI MENCURI</button>
+    <p style="font-size:13px;color:#9a8f78">Tekan ENTER untuk mulai · R untuk main lagi</p>
+  </div>
+</div>
+
+<div id="overlay-win" class="overlay hidden">
+  <div class="card">
+    <h2 style="letter-spacing:4px">PENCURIAN BERHASIL</h2>
+    <h1>Kamu Lolos!</h1>
+    <div class="grade" id="win-grade">S</div>
+    <div style="letter-spacing:3px;color:#d6c9a8">GRADE</div>
+    <p class="stats" id="win-stats"></p>
+    <p>Naskah Alkemis, Peta Bintang &amp; Surat Raja berhasil dicuri — para pustakawan
+      tak pernah tahu kau ada di sana.</p>
+    <button class="bigbtn" data-start>↻ &nbsp;MAIN LAGI (R / ENTER)</button>
+  </div>
+</div>
+
+<div id="overlay-lose" class="overlay hidden">
+  <div class="card">
+    <h2 style="letter-spacing:4px;color:#ef4444">TERTANGKAP</h2>
+    <h1 style="color:#ef4444">GAME OVER</h1>
+    <p class="stats" id="lose-stats"></p>
+    <p>Para pustakawan menyeretmu keluar sebelum fajar. Manuskrip-manuskrip itu
+      tetap terkunci di rak… untuk malam ini.</p>
+    <button class="bigbtn" data-start>↻ &nbsp;COBA LAGI (R / ENTER)</button>
+  </div>
+</div>
+
+<p id="status" role="status" aria-live="polite"></p>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
